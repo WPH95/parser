@@ -239,6 +239,7 @@ type TableInfo struct {
 
 	// TiFlashReplica means the TiFlash replica info.
 	TiFlashReplica *TiFlashReplicaInfo `json:"tiflash_replica"`
+	Engine  string
 }
 
 // TableLockInfo provides meta data describing a table lock.
@@ -721,7 +722,6 @@ type DBInfo struct {
 	Collate string       `json:"collate"`
 	Tables  []*TableInfo `json:"-"` // Tables in the DB.
 	State   SchemaState  `json:"state"`
-	Engine  string
 }
 
 // Clone clones DBInfo.
