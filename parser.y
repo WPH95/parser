@@ -617,6 +617,7 @@ import (
 	width		"WIDTH"
 	regions         "REGIONS"
 	region          "REGION"
+	pointTo     "==>"
 
 	builtinAddDate
 	builtinBitAnd
@@ -1022,6 +1023,8 @@ import (
 	ViewFieldList		"create view statement field list"
 	ViewSQLSecurity		"view sql security"
 	WhereClause		"WHERE clause"
+	WhereDsl        "Where Dsl clause"
+	WhereClauseDslOptional "Optional Dsl Where clause"
 	WhereClauseOptional	"Optional WHERE clause"
 	WhenClause		"When clause"
 	WhenClauseList		"When clause list"
@@ -4451,7 +4454,7 @@ UnReservedKeyword:
 TiDBKeyword:
  "ADMIN" | "AGG_TO_COP" |"BUCKETS" | "BUILTINS" | "CANCEL" | "CMSKETCH" | "DDL" | "DEPTH" | "DRAINER" | "JOBS" | "JOB" | "NODE_ID" | "NODE_STATE" | "PUMP" | "SAMPLES" | "STATS" | "STATS_META" | "STATS_HISTOGRAMS" | "STATS_BUCKETS" | "STATS_HEALTHY" | "TIDB"
 | "HASH_JOIN" | "SM_JOIN" | "INL_JOIN" | "HASH_AGG" | "STREAM_AGG" | "USE_INDEX" | "IGNORE_INDEX" | "USE_INDEX_MERGE" | "NO_INDEX_MERGE" | "USE_TOJA" | "ENABLE_PLAN_CACHE" | "USE_PLAN_CACHE"
-| "READ_CONSISTENT_REPLICA" | "READ_FROM_STORAGE" | "QB_NAME" | "QUERY_TYPE" | "MEMORY_QUOTA" | "OLAP" | "OLTP" | "TOPN" | "TIKV" | "TIFLASH" | "SPLIT" | "OPTIMISTIC" | "PESSIMISTIC" | "WIDTH" | "REGIONS" | "REGION"
+| "READ_CONSISTENT_REPLICA" | "READ_FROM_STORAGE" | "QB_NAME" | "QUERY_TYPE" | "MEMORY_QUOTA" | "OLAP" | "OLTP" | "TOPN" | "TIKV" | "TIFLASH" | "SPLIT" | "OPTIMISTIC" | "PESSIMISTIC" | "WIDTH" | "REGIONS" | "REGION" | "==>"
 
 NotKeywordToken:
  "ADDDATE" | "BIT_AND" | "BIT_OR" | "BIT_XOR" | "CAST" | "COPY" | "COUNT" | "CURTIME" | "DATE_ADD" | "DATE_SUB" | "EXTRACT" | "GET_FORMAT" | "GROUP_CONCAT"
@@ -6008,7 +6011,7 @@ SelectStmtBasic:
 	}
 
 SelectStmtFromDualTable:
-	SelectStmtBasic FromDual WhereClauseOptional
+	SelectStmtBasic FromDual WhereClauseDslOptional
 	{
 		st := $1.(*ast.SelectStmt)
 		lastField := st.Fields.Fields[len(st.Fields.Fields)-1]
@@ -6017,13 +6020,18 @@ SelectStmtFromDualTable:
 			lastField.SetText(parser.src[lastField.Offset:lastEnd])
 		}
 		if $3 != nil {
-			st.Where = $3.(ast.ExprNode)
+            switch where := $3.(type) {
+                case ast.ExprNode:
+                    st.Where = where
+                case ast.StmtNode:
+                    st.WhereDsl = where
+            }
 		}
 	}
 
 SelectStmtFromTable:
 	SelectStmtBasic "FROM"
-	TableRefsClause WhereClauseOptional SelectStmtGroup HavingClause WindowClauseOptional
+	TableRefsClause WhereClauseDslOptional SelectStmtGroup HavingClause WindowClauseOptional
 	{
 		st := $1.(*ast.SelectStmt)
 		st.From = $3.(*ast.TableRefsClause)
@@ -6033,7 +6041,12 @@ SelectStmtFromTable:
 			lastField.SetText(parser.src[lastField.Offset:lastEnd])
 		}
 		if $4 != nil {
-			st.Where = $4.(ast.ExprNode)
+            switch where := $4.(type) {
+                case ast.ExprNode:
+                    st.Where = where
+                case ast.StmtNode:
+                    st.WhereDsl = where
+            }
 		}
 		if $5 != nil {
 			st.GroupBy = $5.(*ast.GroupByClause)
@@ -9496,6 +9509,12 @@ WhereClause:
 		$$ = $2
 	}
 
+WhereDsl:
+    "WHERE" TableName "==>" stringLit
+    {
+        $$ = &ast.WhereDslStmt{Parser: parser,Table: $2.(*ast.TableName), DslString: $4}
+    }
+
 WhereClauseOptional:
 	{
 		$$ = nil
@@ -9504,6 +9523,20 @@ WhereClauseOptional:
 	{
 		$$ = $1
 	}
+
+WhereClauseDslOptional:
+	{
+		$$ = nil
+	}
+|   WhereDsl
+    {
+    	$$ = $1
+    }
+|	WhereClause
+	{
+		$$ = $1
+	}
+
 
 CommaOpt:
 	{}

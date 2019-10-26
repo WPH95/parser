@@ -178,6 +178,14 @@ func (s *Scanner) Lex(v *yySymType) int {
 			tok = tok1
 		}
 	}
+	if tok == eq &&
+		len(s.r.s) - v.offset > 2 &&
+		s.r.s[v.offset + 1] == '=' &&
+		s.r.s[v.offset + 2] == '>'{
+		s.r.incN(2)
+		lit = "==>"
+		tok = pointTo
+	}
 	if s.sqlMode.HasANSIQuotesMode() &&
 		tok == stringLit &&
 		s.r.s[v.offset] == '"' {

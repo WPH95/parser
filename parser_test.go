@@ -315,6 +315,10 @@ func (s *testParserSuite) RunTest(c *C, table []testCase) {
 			c.Assert(err, NotNil, comment)
 			continue
 		}
+		if err != nil {
+			fmt.Println(err) // here you'll have your stack trace
+		}
+
 		c.Assert(err, IsNil, comment)
 		// restore correctness test
 		if t.ok {
@@ -338,6 +342,9 @@ func (s *testParserSuite) RunRestoreTest(c *C, sourceSQLs, expectSQLs string) {
 		restoreSQL := sb.String()
 		comment = Commentf("source %v; restore %v", sourceSQLs, restoreSQL)
 		restoreStmt, err := parser.ParseOneStmt(restoreSQL, "", "")
+		if err != nil {
+			fmt.Print(err)
+		}
 		c.Assert(err, IsNil, comment)
 		CleanNodeText(stmt)
 		CleanNodeText(restoreStmt)
@@ -995,7 +1002,6 @@ func (s *testParserSuite) TestSetVariable(c *C) {
 		IsGlobal bool
 		IsSystem bool
 	}{
-
 		// Set system variable xx.xx, although xx.xx isn't a system variable, the parser should accept it.
 		{"set xx.xx = 666", "xx.xx", false, true},
 		// Set session system variable xx.xx
@@ -4614,4 +4620,14 @@ func (checker *nodeTextCleaner) Enter(in ast.Node) (out ast.Node, skipChildren b
 // Leave implements Visitor interface.
 func (checker *nodeTextCleaner) Leave(in ast.Node) (out ast.Node, ok bool) {
 	return in, true
+}
+
+func (s *testParserSuite) TestWhereDslSuite(c *C) {
+	table := []testCase{
+		//{`Select * from sales where a = 2 and b = 3`, true, `fuck`},
+		{`Select * from sales where sales ==> "lfkdsk: 111 and bdsl: [1 TO 1000] or test: lfkdsk"`, true, `fuck`},
+
+	}
+
+	s.RunTest(c, table)
 }

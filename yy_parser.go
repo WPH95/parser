@@ -103,6 +103,19 @@ type Parser struct {
 	yyVAL  *yySymType
 }
 
+func (p *Parser) ParseSpecExpr(exprDsl string) (ast.ExprNode, error) {
+	exprParser := New()
+	sourceSQL := fmt.Sprintf("select %s", exprDsl)
+	extractNodeFunc := func(node ast.Node) ast.ExprNode {
+		return node.(*ast.SelectStmt).Fields.Fields[0].Expr
+	}
+	stmt, err := exprParser.ParseOneStmt(sourceSQL, "", "")
+	if err != nil {
+		return nil, err
+	}
+	return extractNodeFunc(stmt), nil
+}
+
 type stmtTexter interface {
 	stmtText() string
 }

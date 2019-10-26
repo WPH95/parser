@@ -16,6 +16,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"github.com/pingcap/parser/dsl"
 	"strconv"
 	"strings"
 
@@ -50,6 +51,7 @@ var (
 	_ StmtNode = &CreateBindingStmt{}
 	_ StmtNode = &DropBindingStmt{}
 	_ StmtNode = &ShutdownStmt{}
+	_ StmtNode = &WhereDslStmt{}
 
 	_ Node = &PrivElem{}
 	_ Node = &VariableAssignment{}
@@ -492,6 +494,45 @@ func (n *UseStmt) Accept(v Visitor) (Node, bool) {
 		return v.Leave(newNode)
 	}
 	n = newNode.(*UseStmt)
+	return v.Leave(n)
+}
+
+type ParseInterface interface {
+	ParseSpecExpr(exprDsl string) (ExprNode, error)
+}
+
+type WhereDslStmt struct {
+	stmtNode
+
+	Table     *TableName
+	Parser    ParseInterface
+	DslString string
+	Where     ExprNode
+}
+
+func (n *WhereDslStmt) createWherePhase() (ExprNode, error) {
+	if n.Where != nil {
+		return n.Where, nil
+	}
+
+	result, _ := dsl.ExprParser(n.DslString)
+	exprNode, _ := n.Parser.ParseSpecExpr(result)
+
+	n.Where = exprNode
+	return exprNode, nil
+}
+
+func (n *WhereDslStmt) Restore(ctx *RestoreCtx) error {
+	// TODO : convert dsl string to where syntax and write where
+	return nil
+}
+
+func (n *WhereDslStmt) Accept(v Visitor) (Node, bool) {
+	newNode, skipChildren := v.Enter(n)
+	if skipChildren {
+		return v.Leave(newNode)
+	}
+	n = newNode.(*WhereDslStmt)
 	return v.Leave(n)
 }
 

@@ -14,10 +14,13 @@
 package ast_test
 
 import (
+	"fmt"
 	. "github.com/pingcap/check"
 	"github.com/pingcap/parser"
 	. "github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/auth"
+	. "github.com/pingcap/parser/dsl"
+	"github.com/pingcap/tidb/util/testleak"
 )
 
 var _ = Suite(&testMiscSuite{})
@@ -271,4 +274,16 @@ func (ts *testMiscSuite) TestChangeStmtRestore(c *C) {
 		return node.(*ChangeStmt)
 	}
 	RunNodeRestoreTest(c, testCases, "%s", extractNodeFunc)
+}
+
+func (s *testMiscSuite) TestDSLParser1(c *C) {
+	defer testleak.AfterTest(c)()
+
+	result, err := ExprParser(`lfkdsk: 111 and bdsl: [1 TO 1000] or abc: "lllll"`)
+	if err == nil {
+		fmt.Print(err)
+	}
+
+	c.Assert(err, IsNil)
+	c.Assert(result, IsNil)
 }
