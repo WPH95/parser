@@ -780,7 +780,8 @@ type SelectStmt struct {
 	// From is the from clause of the query.
 	From *TableRefsClause
 	// Where is the where clause in select statement.
-	Where ExprNode
+	Where    ExprNode
+	WhereDsl StmtNode
 	// Fields is the select expression list.
 	Fields *FieldList
 	// GroupBy is the group by expression list.
@@ -867,6 +868,12 @@ func (n *SelectStmt) Restore(ctx *RestoreCtx) error {
 	if n.From == nil && n.Where != nil {
 		ctx.WriteKeyWord(" FROM DUAL")
 	}
+
+	if n.Where == nil && n.WhereDsl != nil {
+		dsl := n.WhereDsl.(*WhereDslStmt)
+		n.Where, _ = dsl.createWherePhase()
+	}
+
 	if n.Where != nil {
 		ctx.WriteKeyWord(" WHERE ")
 		if err := n.Where.Restore(ctx); err != nil {
@@ -959,6 +966,11 @@ func (n *SelectStmt) Accept(v Visitor) (Node, bool) {
 			return n, false
 		}
 		n.From = node.(*TableRefsClause)
+	}
+
+	if n.Where == nil && n.WhereDsl != nil {
+		dslNode := n.WhereDsl.(*WhereDslStmt)
+		n.Where, _ = dslNode.createWherePhase()
 	}
 
 	if n.Where != nil {
@@ -1510,6 +1522,7 @@ type DeleteStmt struct {
 	// Tables is only used in multiple table delete statement.
 	Tables       *DeleteTableList
 	Where        ExprNode
+	WhereDsl     StmtNode
 	Order        *OrderByClause
 	Limit        *Limit
 	Priority     mysql.PriorityEnum

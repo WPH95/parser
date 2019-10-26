@@ -145,6 +145,7 @@ func (s *testLexerSuite) TestLiteral(c *C) {
 		{`b''`, bitLit},
 		{`b'0101'`, bitLit},
 		{`0b0101`, bitLit},
+		{`==>`, pointTo},
 	}
 	runTest(c, table)
 }
